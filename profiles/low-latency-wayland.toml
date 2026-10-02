@@ -1,0 +1,41 @@
+[profile]
+name = "low-latency-wayland"
+description = "Native Wayland nested Gamescope compositor with FSR spatial upscaling and asynchronous flip support"
+target_gpu = "any"
+
+[env]
+SDL_VIDEODRIVER = "wayland,x11"
+GDK_BACKEND = "wayland,x11"
+CLUTTER_BACKEND = "wayland"
+QT_QPA_PLATFORM = "wayland;xcb"
+MESA_VK_WSI_PRESENT_MODE = "immediate"
+vblank_mode = "0"
+
+[wrapper]
+gamemode = true
+gamescope = true
+mangohud = true
+
+[gamescope]
+enabled = true
+nested_width = 1920
+nested_height = 1080
+output_width = 2560
+output_height = 1440
+refresh_rate = 144
+framerate_limit = 144
+upscale_filter = "fsr"
+fsr_sharpness = 5
+fullscreen = true
+borderless = false
+force_grab_cursor = true
+hdr = false
+tearing = true
+
+[cpu]
+governor = "performance"
+energy_performance_preference = "balance_performance"
+nice_priority = -8
+
+[compat]
+wine_sync = true

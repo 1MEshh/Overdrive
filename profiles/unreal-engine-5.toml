@@ -1,0 +1,36 @@
+[profile]
+name = "unreal-engine-5"
+description = "DirectX 12 and Vulkan pipeline pre-compilation, VRAM defragmentation, and stutter mitigation for UE5"
+target_gpu = "any"
+
+[env]
+VKD3D_CONFIG = "dxr11,dxr"
+RADV_PERFTEST = "gpl"
+DXVK_ASYNC = "1"
+PROTON_ENABLE_NVAPI = "1"
+VKD3D_SHADER_CACHE = "1"
+WINE_LARGE_ADDRESS_AWARE = "1"
+PROTON_HIDE_NVIDIA_GPU = "0"
+PROTON_FORCE_LARGE_ADDRESS_AWARE = "1"
+
+[wrapper]
+gamemode = true
+gamescope = false
+mangohud = true
+
+[gamescope]
+enabled = false
+fullscreen = true
+borderless = true
+
+[cpu]
+governor = "performance"
+energy_performance_preference = "performance"
+nice_priority = -5
+
+[compat]
+dxvk_nvapi = true
+dxvk_async = true
+wine_sync = true
+vkd3d_config = "dxr11,dxr"
+radv_perftest = "gpl"

@@ -1,6 +1,8 @@
+pub mod chain;
 pub mod profile;
 pub mod vdf;
 
+pub use chain::{shell_escape, LaunchChainBuilder, SynthesizedCommand};
 pub use profile::{
     get_builtin_profile, list_builtin_profiles, resolve_profile, CompatConfig, CpuConfig,
     GamescopeConfig, GpuVendor, Profile, ProfileError, ProfileMeta, UpscaleFilter,

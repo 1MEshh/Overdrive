@@ -1,0 +1,38 @@
+[profile]
+name = "competitive-fps"
+description = "Maximized frame rates, ultra-low input latency, and immediate presentation for competitive esports"
+target_gpu = "any"
+
+[env]
+RADV_PERFTEST = "gpl,nggc"
+vblank_mode = "0"
+MESA_VK_WSI_PRESENT_MODE = "immediate"
+DXVK_ASYNC = "1"
+PROTON_NO_ESYNC = "0"
+PROTON_NO_FSYNC = "0"
+__GL_GSYNC_ALLOWED = "1"
+__GL_VRR_ALLOWED = "1"
+PROTON_ENABLE_NVAPI = "1"
+MESA_GL_THREAD = "true"
+WINE_FULLSCREEN_FSR = "0"
+
+[wrapper]
+gamemode = true
+gamescope = false
+mangohud = true
+
+[gamescope]
+enabled = false
+fullscreen = true
+tearing = true
+framerate_limit = 240
+
+[cpu]
+governor = "performance"
+energy_performance_preference = "performance"
+nice_priority = -10
+
+[compat]
+dxvk_async = true
+wine_sync = true
+radv_perftest = "gpl,nggc"
