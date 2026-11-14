@@ -111,6 +111,8 @@ pub struct GamescopeConfig {
     pub hdr: bool,
     #[serde(default)]
     pub tearing: bool,
+    #[serde(default)]
+    pub adaptive_sync: bool,
 }
 
 impl Default for GamescopeConfig {
@@ -130,6 +132,7 @@ impl Default for GamescopeConfig {
             force_grab_cursor: false,
             hdr: false,
             tearing: false,
+            adaptive_sync: false,
         }
     }
 }
@@ -160,6 +163,8 @@ pub struct CompatConfig {
     pub vkd3d_config: Option<String>,
     #[serde(default)]
     pub radv_perftest: Option<String>,
+    #[serde(default)]
+    pub proton_wayland: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -323,6 +328,9 @@ impl Profile {
         if child.gamescope.tearing {
             merged.gamescope.tearing = true;
         }
+        if child.gamescope.adaptive_sync {
+            merged.gamescope.adaptive_sync = true;
+        }
 
         // CPU
         if child.cpu.governor.is_some() {
@@ -357,6 +365,9 @@ impl Profile {
         }
         if child.compat.radv_perftest.is_some() {
             merged.compat.radv_perftest = child.compat.radv_perftest.clone();
+        }
+        if child.compat.proton_wayland {
+            merged.compat.proton_wayland = true;
         }
 
         merged

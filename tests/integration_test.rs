@@ -430,6 +430,7 @@ fn test_chain_gamescope_flags() {
         force_grab_cursor: true,
         hdr: true,
         tearing: true,
+        adaptive_sync: false,
     };
 
     let synth = LaunchChainBuilder::from_profile(&profile, &["mygame".to_string()]).build();
