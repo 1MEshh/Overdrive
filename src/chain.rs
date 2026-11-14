@@ -353,3 +353,82 @@ impl LaunchChainBuilder {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::profile::{get_builtin_profile, wayland_native_env, Profile};
+
+    #[test]
+    fn hyprland_wayland_profile_env_and_flags() {
+        let profile =
+            get_builtin_profile("hyprland-wayland").expect("hyprland-wayland profile missing");
+        let synth = LaunchChainBuilder::from_profile(&profile, &["%command%".to_string()]).build();
+
+        assert_eq!(
+            synth.env.get("SDL_VIDEODRIVER").map(String::as_str),
+            Some("wayland")
+        );
+        assert_eq!(
+            synth.env.get("PROTON_ENABLE_WAYLAND").map(String::as_str),
+            Some("1")
+        );
+
+        let argv = synth.full_argv();
+        assert!(argv.contains(&"gamescope".to_string()));
+        assert!(argv.contains(&"--adaptive-sync".to_string()));
+        assert!(argv.contains(&"--force-grab-cursor".to_string()));
+        assert!(argv.contains(&"-f".to_string()));
+        assert_eq!(argv.last().map(String::as_str), Some("%command%"));
+    }
+
+    #[test]
+    fn wayland_native_builder_helper_injects_vrr_and_env() {
+        let mut builder = LaunchChainBuilder::new();
+        builder
+            .set_gamescope(true)
+            .set_gamescope_resolution(Some(2560), Some(1440))
+            .enable_wayland_native()
+            .set_target_command(vec!["./game".to_string()]);
+
+        let synth = builder.build();
+        assert_eq!(
+            synth.env.get("SDL_VIDEODRIVER").map(String::as_str),
+            Some("wayland")
+        );
+        assert_eq!(
+            synth.env.get("PROTON_ENABLE_WAYLAND").map(String::as_str),
+            Some("1")
+        );
+        assert_eq!(synth.program, "gamescope");
+        assert!(synth.args.contains(&"--adaptive-sync".to_string()));
+        assert!(synth.args.contains(&"--force-grab-cursor".to_string()));
+
+        let steam = synth.to_steam_launch_string();
+        assert!(steam.contains("PROTON_ENABLE_WAYLAND=1"));
+        assert!(steam.contains("SDL_VIDEODRIVER=wayland"));
+        assert!(steam.contains("--adaptive-sync"));
+        assert!(steam.contains("--force-grab-cursor"));
+    }
+
+    #[test]
+    fn hyprland_preset_and_env_map_defaults() {
+        let env = wayland_native_env();
+        assert_eq!(env.get("SDL_VIDEODRIVER").map(String::as_str), Some("wayland"));
+        assert_eq!(env.get("PROTON_ENABLE_WAYLAND").map(String::as_str), Some("1"));
+        assert_eq!(env.get("CLUTTER_BACKEND").map(String::as_str), Some("wayland"));
+
+        let preset = Profile::hyprland_wayland_preset(Some(2560), Some(1440), Some(165));
+        assert!(preset.gamescope.enabled);
+        assert!(preset.gamescope.adaptive_sync);
+        assert!(preset.gamescope.force_grab_cursor);
+        assert!(preset.compat.proton_wayland);
+        assert_eq!(preset.gamescope.output_width, Some(2560));
+        assert_eq!(preset.gamescope.refresh_rate, Some(165));
+
+        let base = Profile::default();
+        let merged = base.merge(&preset);
+        assert!(merged.gamescope.adaptive_sync);
+        assert!(merged.compat.proton_wayland);
+    }
+}
