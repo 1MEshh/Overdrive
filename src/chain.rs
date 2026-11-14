@@ -151,6 +151,15 @@ impl LaunchChainBuilder {
                 .env
                 .insert("RADV_PERFTEST".to_string(), radv.clone());
         }
+        if profile.compat.proton_wayland {
+            builder
+                .env
+                .insert("PROTON_ENABLE_WAYLAND".to_string(), "1".to_string());
+            builder
+                .env
+                .entry("SDL_VIDEODRIVER".to_string())
+                .or_insert_with(|| "wayland".to_string());
+        }
 
         // 3. Wrappers
         builder.use_gamemode = profile.wrapper.gamemode;
@@ -203,6 +212,26 @@ impl LaunchChainBuilder {
 
     pub fn set_fps_limit(&mut self, fps: Option<u32>) -> &mut Self {
         self.gamescope_cfg.framerate_limit = fps;
+        self
+    }
+
+    pub fn set_adaptive_sync(&mut self, enabled: bool) -> &mut Self {
+        self.gamescope_cfg.adaptive_sync = enabled;
+        self
+    }
+
+    pub fn set_force_grab_cursor(&mut self, enabled: bool) -> &mut Self {
+        self.gamescope_cfg.force_grab_cursor = enabled;
+        self
+    }
+
+    pub fn enable_wayland_native(&mut self) -> &mut Self {
+        self.env
+            .insert("SDL_VIDEODRIVER".to_string(), "wayland".to_string());
+        self.env
+            .insert("PROTON_ENABLE_WAYLAND".to_string(), "1".to_string());
+        self.gamescope_cfg.adaptive_sync = true;
+        self.gamescope_cfg.force_grab_cursor = true;
         self
     }
 
@@ -300,6 +329,9 @@ impl LaunchChainBuilder {
             }
             if self.gamescope_cfg.tearing {
                 tokens.push("--immediate-flips".to_string());
+            }
+            if self.gamescope_cfg.adaptive_sync {
+                tokens.push("--adaptive-sync".to_string());
             }
 
             // Gamescope delimiter

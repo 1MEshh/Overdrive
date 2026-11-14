@@ -95,6 +95,14 @@ pub struct RunArgs {
     #[arg(long)]
     no_gamescope: bool,
 
+    /// Enable Hyprland / Wayland native env and VRR Gamescope defaults
+    #[arg(long)]
+    wayland: bool,
+
+    /// Enable Gamescope --adaptive-sync (VRR)
+    #[arg(long)]
+    adaptive_sync: bool,
+
     /// Gamescope target output resolution (format: WxH, e.g. 1920x1080 or 2560x1440)
     #[arg(long)]
     resolution: Option<String>,
@@ -244,6 +252,15 @@ fn handle_run(args: RunArgs) -> ExitCode {
     if args.no_gamescope {
         profile.wrapper.gamescope = false;
         profile.gamescope.enabled = false;
+    }
+
+    if args.wayland {
+        profile.apply_hyprland_wayland_defaults();
+    }
+    if args.adaptive_sync {
+        profile.wrapper.gamescope = true;
+        profile.gamescope.enabled = true;
+        profile.gamescope.adaptive_sync = true;
     }
 
     if let Some(res_str) = &args.resolution {
