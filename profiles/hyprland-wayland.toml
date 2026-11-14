@@ -1,0 +1,32 @@
+[profile]
+name = "hyprland-wayland"
+description = "Native Wayland Hyprland profile with Proton Wayland driver and VRR Gamescope"
+target_gpu = "any"
+
+[env]
+SDL_VIDEODRIVER = "wayland"
+PROTON_ENABLE_WAYLAND = "1"
+GDK_BACKEND = "wayland,x11"
+CLUTTER_BACKEND = "wayland"
+QT_QPA_PLATFORM = "wayland;xcb"
+ELECTRON_OZONE_PLATFORM_HINT = "wayland"
+
+[wrapper]
+gamemode = true
+gamescope = true
+mangohud = true
+
+[gamescope]
+enabled = true
+fullscreen = true
+force_grab_cursor = true
+adaptive_sync = true
+
+[cpu]
+governor = "performance"
+energy_performance_preference = "performance"
+nice_priority = -8
+
+[compat]
+wine_sync = true
+proton_wayland = true

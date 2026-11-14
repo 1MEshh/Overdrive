@@ -372,6 +372,54 @@ impl Profile {
 
         merged
     }
+
+    /// Applies Hyprland / Wayland native display and VRR defaults to this profile.
+    pub fn apply_hyprland_wayland_defaults(&mut self) {
+        for (k, v) in wayland_native_env() {
+            self.env.insert(k, v);
+        }
+        self.compat.proton_wayland = true;
+        self.wrapper.gamescope = true;
+        self.gamescope.enabled = true;
+        self.gamescope.adaptive_sync = true;
+        self.gamescope.force_grab_cursor = true;
+        self.gamescope.fullscreen = true;
+    }
+
+    /// Constructs a Wayland-native Hyprland gaming profile with VRR gamescope defaults.
+    pub fn hyprland_wayland_preset(
+        output_width: Option<u32>,
+        output_height: Option<u32>,
+        refresh_rate: Option<u32>,
+    ) -> Self {
+        let mut p = Self::default();
+        p.profile.name = "hyprland-wayland".to_string();
+        p.profile.description =
+            "Native Wayland launch profile tuned for Hyprland with VRR gamescope".to_string();
+        p.wrapper.gamemode = true;
+        p.wrapper.mangohud = true;
+        p.compat.wine_sync = true;
+        p.gamescope.output_width = output_width;
+        p.gamescope.output_height = output_height;
+        p.gamescope.refresh_rate = refresh_rate;
+        p.apply_hyprland_wayland_defaults();
+        p
+    }
+}
+
+/// Returns the standard environment variables for native Wayland execution under Hyprland.
+pub fn wayland_native_env() -> BTreeMap<String, String> {
+    let mut env = BTreeMap::new();
+    env.insert("SDL_VIDEODRIVER".to_string(), "wayland".to_string());
+    env.insert("PROTON_ENABLE_WAYLAND".to_string(), "1".to_string());
+    env.insert("GDK_BACKEND".to_string(), "wayland,x11".to_string());
+    env.insert("CLUTTER_BACKEND".to_string(), "wayland".to_string());
+    env.insert("QT_QPA_PLATFORM".to_string(), "wayland;xcb".to_string());
+    env.insert(
+        "ELECTRON_OZONE_PLATFORM_HINT".to_string(),
+        "wayland".to_string(),
+    );
+    env
 }
 
 pub const BUILTIN_COMPETITIVE_FPS: &str = r#"[profile]
@@ -495,6 +543,40 @@ nice_priority = -8
 wine_sync = true
 "#;
 
+pub const BUILTIN_HYPRLAND_WAYLAND: &str = r#"[profile]
+name = "hyprland-wayland"
+description = "Native Wayland Hyprland profile with Proton Wayland driver and VRR Gamescope"
+target_gpu = "any"
+
+[env]
+SDL_VIDEODRIVER = "wayland"
+PROTON_ENABLE_WAYLAND = "1"
+GDK_BACKEND = "wayland,x11"
+CLUTTER_BACKEND = "wayland"
+QT_QPA_PLATFORM = "wayland;xcb"
+ELECTRON_OZONE_PLATFORM_HINT = "wayland"
+
+[wrapper]
+gamemode = true
+gamescope = true
+mangohud = true
+
+[gamescope]
+enabled = true
+fullscreen = true
+force_grab_cursor = true
+adaptive_sync = true
+
+[cpu]
+governor = "performance"
+energy_performance_preference = "performance"
+nice_priority = -8
+
+[compat]
+wine_sync = true
+proton_wayland = true
+"#;
+
 pub fn get_builtin_profile(name: &str) -> Option<Profile> {
     match name {
         "competitive-fps" | "competitive" => Profile::from_toml(BUILTIN_COMPETITIVE_FPS).ok(),
@@ -502,6 +584,7 @@ pub fn get_builtin_profile(name: &str) -> Option<Profile> {
         "low-latency-wayland" | "wayland" => {
             Profile::from_toml(BUILTIN_LOW_LATENCY_WAYLAND).ok()
         }
+        "hyprland-wayland" | "hyprland" => Profile::from_toml(BUILTIN_HYPRLAND_WAYLAND).ok(),
         _ => None,
     }
 }
@@ -519,6 +602,10 @@ pub fn list_builtin_profiles() -> Vec<(&'static str, &'static str)> {
         (
             "low-latency-wayland",
             "Native Wayland Gamescope compositor with FSR upscaling and direct scanout",
+        ),
+        (
+            "hyprland-wayland",
+            "Hyprland native Wayland + Proton Wayland with VRR adaptive-sync Gamescope",
         ),
     ]
 }
