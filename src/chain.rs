@@ -1,3 +1,4 @@
+use crate::mangohud::MangoHudPreset;
 use crate::profile::{GamescopeConfig, Profile, UpscaleFilter};
 use std::collections::BTreeMap;
 use std::process::Command;
@@ -190,6 +191,13 @@ impl LaunchChainBuilder {
 
     pub fn set_mangohud(&mut self, enabled: bool) -> &mut Self {
         self.use_mangohud = enabled;
+        self
+    }
+
+    pub fn set_mangohud_preset(&mut self, preset: &MangoHudPreset) -> &mut Self {
+        self.use_mangohud = true;
+        self.env
+            .insert("MANGOHUD_CONFIG".to_string(), preset.to_mangohud_config_env());
         self
     }
 

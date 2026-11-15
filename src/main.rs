@@ -1,6 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use overdrive::chain::{shell_escape, LaunchChainBuilder};
 use overdrive::doctor::run_diagnostics;
+use overdrive::mangohud::{MangoHudLayout, MangoHudPreset};
 use overdrive::profile::{
     list_builtin_profiles, resolve_profile, Profile,
 };
@@ -59,6 +60,21 @@ enum Commands {
         #[command(subcommand)]
         sub: VdfSubcommand,
     },
+
+    /// Generate MangoHud overlay configurations for Hyprland and Waybar setups
+    Mangohud {
+        /// Overlay preset (compact, minimal, full)
+        #[arg(long, default_value = "compact")]
+        preset: String,
+
+        /// Print MANGOHUD_CONFIG inline environment string instead of MangoHud.conf
+        #[arg(long)]
+        env: bool,
+
+        /// Optional framerate cap to embed in the generated preset
+        #[arg(long)]
+        fps_limit: Option<u32>,
+    },
 }
 
 #[derive(Args, Debug)]
@@ -86,6 +102,10 @@ pub struct RunArgs {
     /// Force disable MangoHud
     #[arg(long)]
     no_mangohud: bool,
+
+    /// Use MangoHud compact horizontal bar preset (Hyprland + Waybar friendly)
+    #[arg(long)]
+    mangohud_compact: bool,
 
     /// Force enable Gamescope nested compositor
     #[arg(long)]
@@ -190,6 +210,11 @@ fn main() -> ExitCode {
         } => handle_bench(csv_file, json, export_csv),
         Commands::Profiles { sub } => handle_profiles(sub),
         Commands::Vdf { sub } => handle_vdf(sub),
+        Commands::Mangohud {
+            preset,
+            env,
+            fps_limit,
+        } => handle_mangohud(&preset, env, fps_limit),
     }
 }
 
@@ -285,7 +310,12 @@ fn handle_run(args: RunArgs) -> ExitCode {
     }
 
     // 3. Build command chain
-    let builder = LaunchChainBuilder::from_profile(&profile, &args.command);
+    let mut builder = LaunchChainBuilder::from_profile(&profile, &args.command);
+    if args.mangohud_compact {
+        let preset = MangoHudPreset::compact_hyprland()
+            .with_fps_limit(profile.gamescope.framerate_limit);
+        builder.set_mangohud_preset(&preset);
+    }
 
     let synth = builder.build();
 
@@ -596,4 +626,28 @@ fn handle_vdf(sub: VdfSubcommand) -> ExitCode {
             }
         }
     }
+}
+
+fn handle_mangohud(preset_name: &str, env_only: bool, fps_limit: Option<u32>) -> ExitCode {
+    let layout = match preset_name.to_ascii_lowercase().as_str() {
+        "compact" | "compact-horizontal" | "hyprland" => MangoHudLayout::CompactHorizontal,
+        "minimal" | "minimal-fps" => MangoHudLayout::MinimalFps,
+        "full" | "full-telemetry" => MangoHudLayout::FullTelemetry,
+        other => {
+            eprintln!(
+                "[ERROR] Unknown MangoHud preset '{}'. Expected compact, minimal, or full.",
+                other
+            );
+            return ExitCode::from(1);
+        }
+    };
+
+    let preset = MangoHudPreset::from_layout(layout).with_fps_limit(fps_limit);
+    if env_only {
+        println!("MANGOHUD_CONFIG={}", preset.to_mangohud_config_env());
+    } else {
+        print!("{}", preset.to_config_file());
+    }
+
+    ExitCode::SUCCESS
 }
