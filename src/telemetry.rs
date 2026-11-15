@@ -398,3 +398,61 @@ pub fn parse_frametimes_csv(csv_content: &str) -> Result<Vec<f64>, TelemetryErro
 
     Ok(frametimes)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn percentile_edge_case_two_samples() {
+        let metrics = calculate_metrics(&[10.0, 20.0]).expect("2 samples should succeed");
+        assert_eq!(metrics.total_frames, 2);
+        // Total 30ms for 2 frames => 2000 / 30 = 66.6667 FPS
+        assert!((metrics.avg_fps - (2000.0 / 30.0)).abs() < 1e-4);
+        assert!((metrics.max_fps - 100.0).abs() < 1e-6);
+        assert!((metrics.min_fps - 50.0).abs() < 1e-6);
+        // P99 on 2 samples: rank = 0.99 * 1 = 0.99 -> 10 + 0.99 * 10 = 19.9ms
+        assert!((metrics.low_1pct_fps - (1000.0 / 19.9)).abs() < 1e-4);
+        // P99.9 on 2 samples: rank = 0.999 -> 19.99ms
+        assert!((metrics.low_01pct_fps - (1000.0 / 19.99)).abs() < 1e-4);
+    }
+
+    #[test]
+    fn percentile_edge_case_filters_invalid_and_hang_samples() {
+        let noisy = [
+            f64::NAN,
+            f64::INFINITY,
+            0.0,
+            -4.5,
+            12_000.0,
+            10.0,
+            10.0,
+        ];
+        let metrics = calculate_metrics(&noisy).expect("2 valid samples remain");
+        assert_eq!(metrics.total_frames, 2);
+        assert!((metrics.avg_fps - 100.0).abs() < 1e-6);
+
+        let too_few = [f64::NAN, 0.0, -1.0, 10_000.1, 16.0];
+        assert_eq!(
+            calculate_metrics(&too_few).unwrap_err(),
+            TelemetryError::InsufficientSamples
+        );
+    }
+
+    #[test]
+    fn percentile_edge_case_single_spike_vs_duration_weighted_lows() {
+        let mut fts = vec![8.0; 999];
+        fts.push(200.0);
+
+        let metrics = calculate_metrics(&fts).expect("1000 samples should succeed");
+        assert_eq!(metrics.total_frames, 1000);
+        // 999 * 8 + 200 = 8192ms -> 1% duration = 81.92ms, covered by single 200ms frame
+        assert!((metrics.dur_weighted_1pct_fps - 5.0).abs() < 1e-6);
+        assert!((metrics.dur_weighted_01pct_fps - 5.0).abs() < 1e-6);
+        // P99 rank = 0.99 * 999 = 989.01 -> index 989 and 990 are both 8.0ms (125 FPS)
+        assert!((metrics.low_1pct_fps - 125.0).abs() < 1e-6);
+        // P99.9 rank = 0.999 * 999 = 998.001 -> interpolated between 998 (8ms) and 999 (200ms)
+        assert!(metrics.low_01pct_fps < metrics.low_1pct_fps);
+        assert_eq!(metrics.stutter_frames_count, 1);
+    }
+}

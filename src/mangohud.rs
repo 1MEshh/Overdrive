@@ -227,3 +227,59 @@ impl MangoHudPreset {
         self.to_config_lines().join(",")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::chain::LaunchChainBuilder;
+
+    #[test]
+    fn compact_hyprland_config_serialization() {
+        let preset = MangoHudPreset::compact_hyprland();
+        let conf = preset.to_config_file();
+
+        assert!(conf.starts_with("# Overdrive MangoHud preset\n"));
+        assert!(conf.contains("\nlegacy_layout=0\n"));
+        assert!(conf.contains("\nhorizontal\n"));
+        assert!(conf.contains("\nhorizontal_stretch=0\n"));
+        assert!(conf.contains("\nposition=top-center\n"));
+        assert!(conf.contains("\nbackground_alpha=0.35\n"));
+        assert!(conf.contains("\nframe_timing=0\n"));
+        assert!(conf.contains("\ncpu_stats\n"));
+        assert!(conf.contains("\ngpu_stats\n"));
+        assert!(conf.contains("\ngamemode\n"));
+        assert!(!conf.contains("\nno_display\n"));
+    }
+
+    #[test]
+    fn mangohud_env_string_and_bounds_clamping() {
+        let mut preset = MangoHudPreset::minimal_fps()
+            .with_position(MangoHudPosition::BottomRight)
+            .with_fps_limit(Some(144));
+        preset.background_alpha = 1.8;
+        preset.font_size = 4;
+        preset.no_display = true;
+
+        let env_str = preset.to_mangohud_config_env();
+        let parts: Vec<&str> = env_str.split(',').collect();
+
+        assert!(parts.contains(&"horizontal"));
+        assert!(parts.contains(&"position=bottom-right"));
+        assert!(parts.contains(&"background_alpha=1.00"));
+        assert!(parts.contains(&"font_size=8"));
+        assert!(parts.contains(&"fps_limit=144"));
+        assert!(parts.contains(&"no_display"));
+
+        let mut builder = LaunchChainBuilder::new();
+        builder
+            .set_mangohud_preset(&preset)
+            .set_target_command(vec!["./game".to_string()]);
+        let synth = builder.build();
+
+        assert_eq!(synth.program, "mangohud");
+        assert_eq!(
+            synth.env.get("MANGOHUD_CONFIG").map(String::as_str),
+            Some(env_str.as_str())
+        );
+    }
+}
