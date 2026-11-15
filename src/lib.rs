@@ -1,11 +1,13 @@
 pub mod chain;
 pub mod doctor;
+pub mod mangohud;
 pub mod profile;
 pub mod telemetry;
 pub mod vdf;
 
 pub use chain::{shell_escape, LaunchChainBuilder, SynthesizedCommand};
 pub use doctor::{run_diagnostics, CheckStatus, DiagnosticCheck, DoctorReport};
+pub use mangohud::{MangoHudLayout, MangoHudPosition, MangoHudPreset};
 pub use profile::{
     get_builtin_profile, list_builtin_profiles, resolve_profile, wayland_native_env,
     CompatConfig, CpuConfig, GamescopeConfig, GpuVendor, Profile, ProfileError, ProfileMeta,
