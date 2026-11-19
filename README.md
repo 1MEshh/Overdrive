@@ -171,6 +171,7 @@ $$S = \left(\frac{\sum_{i \in \mathcal{K}} T_i}{D}\right) \times 100\%, \quad \t
 | `competitive-fps` | Vulkan / DXVK | `RADV_PERFTEST=gpl,nggc`, `MESA_VK_WSI_PRESENT_MODE=immediate`, `vblank_mode=0`, `DXVK_ASYNC=1` | `gamemoderun`, `mangohud` | `nice -n -10`, `performance` | Zero vsync delay, immediate presentation, ACO GPL pipeline cache |
 | `unreal-engine-5` | DirectX 12 / VKD3D | `VKD3D_CONFIG=dxr11,dxr`, `VKD3D_SHADER_CACHE=1`, `PROTON_ENABLE_NVAPI=1`, `DXVK_ASYNC=1` | `gamemoderun`, `mangohud` | `nice -n -5`, `performance` | DXR raytracing pre-caching, VRAM defragmentation, PSO compile mitigation |
 | `low-latency-wayland` | Wayland / Gamescope | `SDL_VIDEODRIVER=wayland`, `MESA_VK_WSI_PRESENT_MODE=immediate` | `gamescope -F fsr --immediate-flips` | `nice -n -8`, `balance_perf` | FSR spatial upscaling (1080p -> 1440p), tear-free direct scanout |
+| `hyprland-wayland` | Native Wayland / Hyprland | `SDL_VIDEODRIVER=wayland`, `PROTON_ENABLE_WAYLAND=1`, `GDK_BACKEND=wayland,x11` | `gamescope --adaptive-sync --force-grab-cursor` | `nice -n -8`, `performance` | Native Wayland Proton driver, VRR adaptive sync, cursor lock |
 
 ---
 
@@ -221,9 +222,33 @@ overdrive bench cs2_match.csv --json
 
 # Export summarized single-row metrics to CSV
 overdrive bench cs2_match.csv --export-csv summary.csv
+
+# Emit single-line Waybar custom module JSON telemetry
+overdrive bench cs2_match.csv --waybar --game "Counter-Strike 2"
 ```
 
-### 4. Profile Management & VDF Inspection
+### 4. Hyprland, MangoHud & Waybar Integration
+```bash
+# Synthesize a native Wayland + VRR Gamescope launch chain with compact horizontal MangoHud
+overdrive run --profile hyprland-wayland --mangohud-compact --resolution 2560x1440 --dry-run -- %command%
+
+# Generate a compact horizontal MangoHud.conf or MANGOHUD_CONFIG env string
+overdrive mangohud --preset compact --fps-limit 144
+overdrive mangohud --preset compact --env --fps-limit 144
+```
+
+Example Waybar custom module (`~/.config/waybar/config.jsonc`):
+```jsonc
+"custom/overdrive": {
+  "exec": "overdrive bench /tmp/overdrive-live.csv --waybar --game \"Active Game\"",
+  "return-type": "json",
+  "interval": 2,
+  "format": "{}",
+  "tooltip": true
+}
+```
+
+### 5. Profile Management & VDF Inspection
 ```bash
 # List all built-in and user profiles
 overdrive profiles list
@@ -269,7 +294,7 @@ cargo build --release
 
 ### Running Test Suite
 ```bash
-# Run 32 automated integration and unit tests
+# Run automated unit and integration tests
 cargo test
 ```
 

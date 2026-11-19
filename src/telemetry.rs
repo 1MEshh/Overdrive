@@ -548,4 +548,48 @@ mod tests {
         assert!(metrics.low_01pct_fps < metrics.low_1pct_fps);
         assert_eq!(metrics.stutter_frames_count, 1);
     }
+
+    #[test]
+    fn waybar_json_telemetry_active_session_format() {
+        let fts = vec![8.0; 120];
+        let metrics = calculate_metrics(&fts).expect("metrics should compute");
+        let raw_json = metrics.to_waybar_json(Some("Counter-Strike 2"));
+
+        assert!(!raw_json.contains('\n'), "Waybar requires single-line JSON");
+        let parsed: serde_json::Value =
+            serde_json::from_str(&raw_json).expect("Valid JSON expected");
+
+        assert_eq!(parsed["alt"], "active");
+        assert_eq!(parsed["class"], "smooth");
+        assert_eq!(parsed["active"], true);
+        assert_eq!(parsed["active_game"], "Counter-Strike 2");
+        assert_eq!(parsed["percentage"], 100);
+        assert!((parsed["avg_fps"].as_f64().unwrap() - 125.0).abs() < 1e-4);
+        assert!((parsed["low_1pct_fps"].as_f64().unwrap() - 125.0).abs() < 1e-4);
+        assert!(parsed["text"]
+            .as_str()
+            .unwrap()
+            .contains("Counter-Strike 2: 125 FPS | 1% 125"));
+        assert!(parsed["tooltip"].as_str().unwrap().contains("Avg FPS: 125.0"));
+    }
+
+    #[test]
+    fn waybar_json_telemetry_idle_and_stutter_classes() {
+        let idle_json = WaybarTelemetry::idle().to_json();
+        assert!(!idle_json.contains('\n'));
+        let idle_val: serde_json::Value = serde_json::from_str(&idle_json).unwrap();
+        assert_eq!(idle_val["active"], false);
+        assert_eq!(idle_val["class"], "idle");
+        assert_eq!(idle_val["alt"], "idle");
+        assert!(idle_val["active_game"].is_null());
+
+        let mut stutter_fts = vec![10.0; 80];
+        stutter_fts.extend(vec![30.0; 20]);
+        let stutter_metrics = calculate_metrics(&stutter_fts).unwrap();
+        let waybar = stutter_metrics.to_waybar_telemetry(None);
+        assert_eq!(waybar.class, "stutter");
+        assert!(waybar.active);
+        assert!(waybar.active_game.is_none());
+        assert!(waybar.percentage < 100);
+    }
 }
