@@ -5,7 +5,7 @@ use overdrive::mangohud::{MangoHudLayout, MangoHudPreset};
 use overdrive::profile::{
     list_builtin_profiles, resolve_profile, Profile,
 };
-use overdrive::telemetry::{calculate_metrics, parse_frametimes_csv};
+use overdrive::telemetry::{calculate_metrics, parse_frametimes_csv, WaybarTelemetry};
 use overdrive::vdf::{parse_app_manifest, parse_library_folders, parse_vdf};
 use std::fs;
 use std::path::PathBuf;
@@ -37,12 +37,20 @@ enum Commands {
 
     /// Ingest and analyze frametime telemetry CSV from MangoHud, CapFrameX, or PresentMon
     Bench {
-        /// Path to frametime CSV file
-        csv_file: PathBuf,
+        /// Path to frametime CSV file (optional when polling --waybar idle status)
+        csv_file: Option<PathBuf>,
 
         /// Output benchmark telemetry metrics in JSON format
         #[arg(long)]
         json: bool,
+
+        /// Output single-line Waybar custom module JSON telemetry
+        #[arg(long)]
+        waybar: bool,
+
+        /// Active game label for Waybar telemetry output
+        #[arg(long)]
+        game: Option<String>,
 
         /// Export summary benchmark metrics to specified CSV file
         #[arg(long)]
@@ -206,8 +214,10 @@ fn main() -> ExitCode {
         Commands::Bench {
             csv_file,
             json,
+            waybar,
+            game,
             export_csv,
-        } => handle_bench(csv_file, json, export_csv),
+        } => handle_bench(csv_file, json, waybar, game, export_csv),
         Commands::Profiles { sub } => handle_profiles(sub),
         Commands::Vdf { sub } => handle_vdf(sub),
         Commands::Mangohud {
@@ -373,14 +383,28 @@ fn handle_run(args: RunArgs) -> ExitCode {
     }
 }
 
-fn handle_bench(csv_file: PathBuf, json: bool, export_csv: Option<PathBuf>) -> ExitCode {
-    if !csv_file.exists() {
-        eprintln!(
-            "[ERROR] Telemetry CSV file not found: {}",
-            csv_file.display()
-        );
-        return ExitCode::from(1);
-    }
+fn handle_bench(
+    csv_file: Option<PathBuf>,
+    json: bool,
+    waybar: bool,
+    game: Option<String>,
+    export_csv: Option<PathBuf>,
+) -> ExitCode {
+    let csv_file = match csv_file {
+        Some(path) if path.exists() => path,
+        Some(_) | None if waybar => {
+            println!("{}", WaybarTelemetry::idle().to_json());
+            return ExitCode::SUCCESS;
+        }
+        Some(path) => {
+            eprintln!("[ERROR] Telemetry CSV file not found: {}", path.display());
+            return ExitCode::from(1);
+        }
+        None => {
+            eprintln!("[ERROR] Missing telemetry CSV file path.");
+            return ExitCode::from(1);
+        }
+    };
 
     let content = match fs::read_to_string(&csv_file) {
         Ok(c) => c,
@@ -420,10 +444,14 @@ fn handle_bench(csv_file: PathBuf, json: bool, export_csv: Option<PathBuf>) -> E
             );
             return ExitCode::from(1);
         }
-        println!("[OK] Telemetry metrics summary exported to: {}", export_path.display());
+        if !waybar {
+            println!("[OK] Telemetry metrics summary exported to: {}", export_path.display());
+        }
     }
 
-    if json {
+    if waybar {
+        println!("{}", metrics.to_waybar_json(game.as_deref()));
+    } else if json {
         println!("{}", metrics.to_json());
     } else {
         println!("{}", metrics.to_ascii_card());
