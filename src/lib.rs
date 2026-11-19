@@ -14,7 +14,7 @@ pub use profile::{
     UpscaleFilter, WrapperConfig,
 };
 pub use telemetry::{
-    calculate_metrics, parse_frametimes_csv, BenchmarkMetrics, TelemetryError,
+    calculate_metrics, parse_frametimes_csv, BenchmarkMetrics, TelemetryError, WaybarTelemetry,
 };
 pub use vdf::{
     detect_game_install_path, detect_proton_prefix, find_app_in_libraries,

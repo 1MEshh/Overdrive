@@ -21,6 +21,91 @@ pub enum TelemetryError {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WaybarTelemetry {
+    pub text: String,
+    pub alt: String,
+    pub tooltip: String,
+    pub class: String,
+    pub percentage: u8,
+    pub active: bool,
+    pub active_game: Option<String>,
+    pub avg_fps: f64,
+    pub low_1pct_fps: f64,
+}
+
+impl WaybarTelemetry {
+    /// Builds a Waybar custom-module payload from computed frametime metrics.
+    pub fn from_metrics(metrics: &BenchmarkMetrics, active_game: Option<&str>) -> Self {
+        let clean_game = active_game
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
+
+        let text = match &clean_game {
+            Some(name) => format!(
+                "{}: {:.0} FPS | 1% {:.0}",
+                name, metrics.avg_fps, metrics.low_1pct_fps
+            ),
+            None => format!("{:.0} FPS | 1% {:.0}", metrics.avg_fps, metrics.low_1pct_fps),
+        };
+
+        let class = if metrics.stutter_index_pct >= 5.0 {
+            "stutter"
+        } else if metrics.stutter_index_pct >= 1.5 {
+            "warning"
+        } else {
+            "smooth"
+        }
+        .to_string();
+
+        let smoothness = (100.0 - metrics.stutter_index_pct).clamp(0.0, 100.0).round() as u8;
+        let header = clean_game.as_deref().unwrap_or("Active Game Session");
+        let tooltip = format!(
+            "{}\nAvg FPS: {:.1}\n1% Low: {:.1}\n0.1% Low: {:.1}\nMean Frametime: {:.2} ms\nJitter (RMSSD): {:.2} ms\nStutter Index: {:.2}%",
+            header,
+            metrics.avg_fps,
+            metrics.low_1pct_fps,
+            metrics.low_01pct_fps,
+            metrics.mean_frametime_ms,
+            metrics.rmssd_jitter_ms,
+            metrics.stutter_index_pct
+        );
+
+        Self {
+            text,
+            alt: "active".to_string(),
+            tooltip,
+            class,
+            percentage: smoothness,
+            active: true,
+            active_game: clean_game,
+            avg_fps: (metrics.avg_fps * 100.0).round() / 100.0,
+            low_1pct_fps: (metrics.low_1pct_fps * 100.0).round() / 100.0,
+        }
+    }
+
+    /// Returns an idle Waybar payload when no game capture is active.
+    pub fn idle() -> Self {
+        Self {
+            text: "Idle".to_string(),
+            alt: "idle".to_string(),
+            tooltip: "Overdrive: no active game telemetry".to_string(),
+            class: "idle".to_string(),
+            percentage: 0,
+            active: false,
+            active_game: None,
+            avg_fps: 0.0,
+            low_1pct_fps: 0.0,
+        }
+    }
+
+    /// Serializes as a compact single-line JSON string required by Waybar custom modules.
+    pub fn to_json(&self) -> String {
+        serde_json::to_string(self).unwrap_or_else(|_| "{}".to_string())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BenchmarkMetrics {
     pub total_frames: usize,
     pub duration_seconds: f64,
@@ -117,6 +202,14 @@ impl BenchmarkMetrics {
 
     pub fn to_json(&self) -> String {
         serde_json::to_string_pretty(self).unwrap_or_else(|_| "{}".to_string())
+    }
+
+    pub fn to_waybar_telemetry(&self, active_game: Option<&str>) -> WaybarTelemetry {
+        WaybarTelemetry::from_metrics(self, active_game)
+    }
+
+    pub fn to_waybar_json(&self, active_game: Option<&str>) -> String {
+        self.to_waybar_telemetry(active_game).to_json()
     }
 
     pub fn to_csv_summary(&self) -> String {
